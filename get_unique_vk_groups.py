@@ -100,7 +100,10 @@ def get_extended_group_info():
     print_separator()
     time.sleep(time_delay)
     responce = requests.get('https://api.vk.com/method/groups.getById', params_extended)
-    user_groups_extended = responce.json()['response']
+    try:
+        user_groups_extended = responce.json()['response']
+    except:
+        return []
     return user_groups_extended
 
 
@@ -119,7 +122,6 @@ def get_json_for_saving():
 def write_unique_user_groups_to_file():
     data = get_json_for_saving()
     with open('groups.json', 'w') as f:
-        json.dump(data, f, ensure_ascii=False)
-
+        json.dump(data, f, indent=4, ensure_ascii=False, sort_keys=False)
 
 write_unique_user_groups_to_file()   
