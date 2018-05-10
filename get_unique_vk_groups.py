@@ -6,6 +6,7 @@ import sys
 CONFIG = 'config.json'
 SEPARATOR = '.'
 TIME_DELAY = 0.7
+OUTPUT_FILE_NAME = 'groups.json'
 
 API_VK_VERSION = '5.73'
 API_VK_USERS_URL = 'https://api.vk.com/method/users.get'
@@ -33,7 +34,8 @@ def get_token_from_config():
 
 
 def print_separator():
-    return print(SEPARATOR, end='', flush=True)
+    print(SEPARATOR, end='', flush=True)
+    return
 
 
 def do_request(url, params):
@@ -48,29 +50,33 @@ def do_request(url, params):
         response = requests.get(url, params)
         status_code = response.status_code
         if status_code == requests.codes.ok:
-            if 'error' in response.json():
-                if response.json()['error']['error_code'] in (TOO_MANY_REQUESTS_PER_SECOND, 
+            response_json = response.json()
+            if 'error' in response_json:
+                if response_json['error']['error_code'] in (TOO_MANY_REQUESTS_PER_SECOND, 
                                                               FLOOD_CONTROL):
                     time.sleep(TIME_DELAY)
                     continue
-                elif response.json()['error']['error_code'] in (ONE_OF_THE_PARAMETERS_SPECIFIED_WAS_MISSING_OR_INVALID, 
+                elif response_json['error']['error_code'] in (ONE_OF_THE_PARAMETERS_SPECIFIED_WAS_MISSING_OR_INVALID, 
                                                                 USER_WAS_DELETED_OR_BANNED, 
                                                                 PERMISSION_TO_PERFORM_THIS_ACTION_IS_DENIED):
-                    return {}
-                elif response.json()['error']['error_code'] in (UNKNOWN_ERROR_OCCURRED, 
+                    return None
+                elif response_json['error']['error_code'] in (UNKNOWN_ERROR_OCCURRED, 
                                                                 INTERNAL_SERVER_ERROR):
-                    return print('Server error')
-                elif response.json()['error']['error_code'] == INVALID_USER_ID:
-                    return print('Invalid user id')
+                    print('Server error')
+                    return
+                elif response_json['error']['error_code'] == INVALID_USER_ID:
+                    print('Invalid user id')
+                    return
                 else:
-                    return {}         
+                    return None         
             else:
                 return response
         else:
-            return print('Server error')    
+            print('Server error')
+            return
 
 
-def get_user_id_int():
+def get_user_id_int(user_from_input):
     params = {
         'user_ids': user_from_input
     }
@@ -82,83 +88,79 @@ def get_user_id_int():
         return user_id_int
 
 
-def get_user_friends():
+def get_user_friends(user_id):
     params = {
-        'user_id': user_id_int
+        'user_id': user_id
     }
     response = do_request(API_VK_FRIENDS_URL, params)
     try:
         user_friends = response.json()['response']['items']
-    except (AttributeError, TypeError, KeyError):
+    except AttributeError:
         return []
     return user_friends
 
 
-def get_user_groups():
+def get_user_groups(user_id):
     params = {
-        'user_id': user_id_int
+        'user_id': user_id
     }
     response = do_request(API_VK_GROUPS_URL, params)
     try:
         user_groups = response.json()['response']['items']
         user_groups = set(user_groups)
-    except (AttributeError, TypeError, KeyError):
+    except AttributeError:
         return set()
     return user_groups
 
 
-def get_all_friends_groups():
+def get_all_friends_groups(user_id, user_friends):
     all_friends_groups = []
-    user_friends = get_user_friends()
-    for friend in user_friends:
+    for user_id in user_friends:
         params = {
-            'user_id': friend
+            'user_id': user_id
         }
         response = do_request(API_VK_GROUPS_URL, params)
         try:
             user_groups = response.json()['response']['items']
-        except (TypeError, AttributeError, KeyError):
+        except AttributeError:     
             user_groups = []
         all_friends_groups.extend(user_groups)
     return all_friends_groups
 
 
-def get_all_friends_unique_groups():
-    all_friends_unique_groups_set = set(get_all_friends_groups())
+def get_all_friends_unique_groups(all_friends_groups):
+    all_friends_unique_groups_set = set(all_friends_groups)
     return all_friends_unique_groups_set
 
 
-def unique_user_groups():
-    user_groups = get_user_groups()
-    all_friends_unique_groups = get_all_friends_unique_groups()
+def get_unique_user_groups(user_groups, all_friends_unique_groups):
     unique_user_groups = user_groups.difference(all_friends_unique_groups)
     return unique_user_groups
 
 
-def get_unique_user_groups_str():
-    unique_user_groups_list = list(unique_user_groups())
+def get_unique_user_groups_str(unique_user_groups):
+    unique_user_groups_list = list(unique_user_groups)
     unique_user_groups_str = ','.join(map(str, unique_user_groups_list))
     return unique_user_groups_str
 
 
-def get_extended_group_info():
+def get_extended_group_info(group_ids):
     params = {
-        'group_ids': get_unique_user_groups_str(),
+        'group_ids': group_ids,
         'extended': 1,
         'fields': 'members_count',
     }
     response = do_request(API_VK_GROUPS_BY_ID_URL, params)
     try:
         user_groups_extended = response.json()['response']
-    except (AttributeError, TypeError, KeyError):
+    except AttributeError:
         return {}
     return user_groups_extended
 
 
-def get_json_for_saving():
-    raw_data = get_extended_group_info()
+def get_data_for_saving(raw_data_for_saving):
     data_for_saving = []
-    for item in raw_data:
+    for item in raw_data_for_saving:
         group_dict = {}
         group_dict['name'] = item.get('name')
         group_dict['gid'] = item.get('screen_name')
@@ -167,17 +169,34 @@ def get_json_for_saving():
     return data_for_saving   
 
 
-def write_unique_user_groups_to_file():
-    data = get_json_for_saving()
-    with open('groups.json', 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False, sort_keys=False)
+def write_unique_user_groups_to_file(data_for_saving):
+    with open(OUTPUT_FILE_NAME, 'w') as f:
+        json.dump(data_for_saving, f, indent=4, ensure_ascii=False, sort_keys=False)
 
 
 def main():
-    write_unique_user_groups_to_file()
+    # получаем цифровой идентификатор пользователя
+    user_id = get_user_id_int(user_from_input)
+    # получаем все группы пользователя
+    user_groups = get_user_groups(user_id)
+    # получаем всех друзей пользователя
+    user_friends = get_user_friends(user_id)
+    # получаем полный список групп всех друзей
+    all_friends_groups = get_all_friends_groups(user_id, user_friends)
+    # получаем список только уникальных групп всех друзей
+    all_friends_unique_groups = get_all_friends_unique_groups(all_friends_groups)
+    # получаем уникальные группы пользователя
+    unique_user_groups = get_unique_user_groups(user_groups, all_friends_unique_groups)
+    # приводим уникальные группы пользователя к формату строки
+    group_ids = get_unique_user_groups_str(unique_user_groups)
+    # получаем сырые данные по группам, которые позже преобразуем в нужный формат и сохраним
+    raw_data_for_saving = get_extended_group_info(group_ids)
+    # приводим сырые данные в нужный формат для сохранения в файл
+    data_for_saving = get_data_for_saving(raw_data_for_saving)
+    # записываем данные в файл
+    write_unique_user_groups_to_file(data_for_saving)
 
 
 if __name__ == '__main__':
     token = get_token_from_config()
-    user_id_int = get_user_id_int()
     main()
