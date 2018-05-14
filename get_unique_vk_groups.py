@@ -41,7 +41,7 @@ def print_separator():
 def do_request(url, params):
     base_params = {
         'access_token': token,
-        'v': API_VK_VERSION   
+        'v': API_VK_VERSION
     }
     base_params.update(params)
     params = base_params
@@ -52,23 +52,23 @@ def do_request(url, params):
         if status_code == requests.codes.ok:
             response_json = response.json()
             if 'error' in response_json:
-                if response_json['error']['error_code'] in (TOO_MANY_REQUESTS_PER_SECOND, 
-                                                              FLOOD_CONTROL):
+                if response_json['error']['error_code'] in (TOO_MANY_REQUESTS_PER_SECOND,
+                                                            FLOOD_CONTROL):
                     time.sleep(TIME_DELAY)
                     continue
-                elif response_json['error']['error_code'] in (ONE_OF_THE_PARAMETERS_SPECIFIED_WAS_MISSING_OR_INVALID, 
-                                                                USER_WAS_DELETED_OR_BANNED, 
-                                                                PERMISSION_TO_PERFORM_THIS_ACTION_IS_DENIED):
+                elif response_json['error']['error_code'] in (ONE_OF_THE_PARAMETERS_SPECIFIED_WAS_MISSING_OR_INVALID,
+                                                              USER_WAS_DELETED_OR_BANNED,
+                                                              PERMISSION_TO_PERFORM_THIS_ACTION_IS_DENIED):
                     return None
-                elif response_json['error']['error_code'] in (UNKNOWN_ERROR_OCCURRED, 
-                                                                INTERNAL_SERVER_ERROR):
+                elif response_json['error']['error_code'] in (UNKNOWN_ERROR_OCCURRED,
+                                                              INTERNAL_SERVER_ERROR):
                     print('Server error')
                     return None
                 elif response_json['error']['error_code'] == INVALID_USER_ID:
                     print('Invalid user id')
                     return None
                 else:
-                    return None         
+                    return None
             else:
                 return response
         else:
@@ -118,7 +118,7 @@ def get_all_friends_unique_groups(user_friends):
     for user_id in user_friends:
         user_groups = get_user_groups(user_id)
         all_friends_unique_groups = all_friends_unique_groups | user_groups
-    return all_friends_unique_groups  
+    return all_friends_unique_groups
 
 
 def get_unique_user_groups(user_groups, all_friends_unique_groups):
@@ -153,7 +153,7 @@ def get_data_for_saving(raw_data_for_saving):
         group_dict['gid'] = item.get('screen_name')
         group_dict['members_count'] = item.get('members_count')
         data_for_saving.append(group_dict)
-    return data_for_saving   
+    return data_for_saving
 
 
 def write_unique_user_groups_to_file(data_for_saving):
@@ -174,7 +174,7 @@ def main():
     unique_user_groups = get_unique_user_groups(user_groups, all_friends_unique_groups)
     # приводим уникальные группы пользователя к формату строки
     group_ids_str = get_unique_user_groups_str(unique_user_groups)
-    # получаем сырые данные по группам, которые позже преобразуем в нужный формат и сохраним
+    # получаем сырые данные по группам, позже преобразуем их в нужный формат и сохраним
     raw_data_for_saving = get_extended_group_info(group_ids_str)
     # приводим сырые данные в нужный формат для сохранения в файл
     data_for_saving = get_data_for_saving(raw_data_for_saving)
