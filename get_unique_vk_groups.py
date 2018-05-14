@@ -63,17 +63,17 @@ def do_request(url, params):
                 elif response_json['error']['error_code'] in (UNKNOWN_ERROR_OCCURRED, 
                                                                 INTERNAL_SERVER_ERROR):
                     print('Server error')
-                    return
+                    return None
                 elif response_json['error']['error_code'] == INVALID_USER_ID:
                     print('Invalid user id')
-                    return
+                    return None
                 else:
                     return None         
             else:
                 return response
         else:
             print('Server error')
-            return
+            return None
 
 
 def get_user_id_int(user_from_input):
@@ -113,24 +113,12 @@ def get_user_groups(user_id):
     return user_groups
 
 
-def get_all_friends_groups(user_id, user_friends):
-    all_friends_groups = []
+def get_all_friends_unique_groups(user_friends):
+    all_friends_unique_groups = set()
     for user_id in user_friends:
-        params = {
-            'user_id': user_id
-        }
-        response = do_request(API_VK_GROUPS_URL, params)
-        try:
-            user_groups = response.json()['response']['items']
-        except AttributeError:     
-            user_groups = []
-        all_friends_groups.extend(user_groups)
-    return all_friends_groups
-
-
-def get_all_friends_unique_groups(all_friends_groups):
-    all_friends_unique_groups_set = set(all_friends_groups)
-    return all_friends_unique_groups_set
+        user_groups = get_user_groups(user_id)
+        all_friends_unique_groups = all_friends_unique_groups | user_groups
+    return all_friends_unique_groups  
 
 
 def get_unique_user_groups(user_groups, all_friends_unique_groups):
@@ -139,14 +127,13 @@ def get_unique_user_groups(user_groups, all_friends_unique_groups):
 
 
 def get_unique_user_groups_str(unique_user_groups):
-    unique_user_groups_list = list(unique_user_groups)
-    unique_user_groups_str = ','.join(map(str, unique_user_groups_list))
+    unique_user_groups_str = ','.join(map(str, unique_user_groups))
     return unique_user_groups_str
 
 
-def get_extended_group_info(group_ids):
+def get_extended_group_info(group_ids_str):
     params = {
-        'group_ids': group_ids,
+        'group_ids': group_ids_str,
         'extended': 1,
         'fields': 'members_count',
     }
@@ -181,16 +168,14 @@ def main():
     user_groups = get_user_groups(user_id)
     # получаем всех друзей пользователя
     user_friends = get_user_friends(user_id)
-    # получаем полный список групп всех друзей
-    all_friends_groups = get_all_friends_groups(user_id, user_friends)
-    # получаем список только уникальных групп всех друзей
-    all_friends_unique_groups = get_all_friends_unique_groups(all_friends_groups)
+    # получаем список уникальных групп всех друзей
+    all_friends_unique_groups = get_all_friends_unique_groups(user_friends)
     # получаем уникальные группы пользователя
     unique_user_groups = get_unique_user_groups(user_groups, all_friends_unique_groups)
     # приводим уникальные группы пользователя к формату строки
-    group_ids = get_unique_user_groups_str(unique_user_groups)
+    group_ids_str = get_unique_user_groups_str(unique_user_groups)
     # получаем сырые данные по группам, которые позже преобразуем в нужный формат и сохраним
-    raw_data_for_saving = get_extended_group_info(group_ids)
+    raw_data_for_saving = get_extended_group_info(group_ids_str)
     # приводим сырые данные в нужный формат для сохранения в файл
     data_for_saving = get_data_for_saving(raw_data_for_saving)
     # записываем данные в файл
