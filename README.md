@@ -3,6 +3,7 @@
 This script finds unique vk.com user's groups comparing to all his or her friends.
 
 # Quickstart
+
 Example of script launch on MacOS Sierra, Python 3.5:
 
 ```#!bash
@@ -19,7 +20,7 @@ $ python get_unique_vk_groups.py <user_id>
 
 User_id may be numeric id or short username.
 
-# Output example:
+# Output example
 
 File groups.json in the script directory.
 
